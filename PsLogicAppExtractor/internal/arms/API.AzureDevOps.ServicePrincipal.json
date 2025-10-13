@@ -1,0 +1,26 @@
+﻿{
+    "type": "Microsoft.Web/connections",
+    "apiVersion": "2016-06-01",
+    "name": "##NAME##",
+    "location": "[parameters('logicAppLocation')]",
+    "properties": {
+        "api": {
+            "id": "[subscriptionResourceId('Microsoft.Web/locations/managedApis', parameters('logicAppLocation'), 'visualstudioteamservices')]"
+        },
+        "displayName": "##NAME##",
+        "parameterValueSet": {
+            "name": "OauthSP",
+            "values": {
+                "token:TenantId": {
+                    "value": "##TENANTID##"
+                },
+                "token:clientId": {
+                    "value": "##CLIENTID##"
+                },
+                "token:clientSecret": {
+                    "value": "##CLIENTSECRET##"
+                }
+            }
+        }
+    }
+}
