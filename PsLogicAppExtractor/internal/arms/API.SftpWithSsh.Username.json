@@ -12,7 +12,8 @@
             "portNumber": "##PORTNUMBER##",
             "rootFolder": "##ROOTFOLDER##",
             "acceptAnySshHostKey": true,
-            "sshHostKeyFingerprint": ""
+            "sshHostKeyFingerprint": "",
+            "sshPrivateKey": "##SSHPRIVATEKEY##"
         },
         "displayName": "##NAME##",
         "customParameterValues": {},

@@ -2388,7 +2388,8 @@ Task -Name "Set-Arm.Connections.ManagedApis.SftpWithSsh.Username.Advanced.AsArmO
             $rootPreSuf = Format-Name -Type "Connection" -Prefix $Prefix -Suffix "_Rootfolder" -Value "$($_.Name)"
             $acceptPreSuf = Format-Name -Type "Connection" -Prefix $Prefix -Suffix "_AcceptAnySshHostkey" -Value "$($_.Name)"
             $fingerPreSuf = Format-Name -Type "Connection" -Prefix $Prefix -Suffix "_SshHostKeyFingerprint" -Value "$($_.Name)"
-            
+            $sshKeyPreSuf = Format-Name -Type "Connection" -Prefix $Prefix -Suffix "_SshPrivateKey" -Value "$($_.Name)"
+
             $idPreSuf = Format-Name -Type "Connection" -Value "$($_.Name)"
             $displayPreSuf = Format-Name -Type "Connection" -Prefix $Prefix -Suffix "_DisplayName" -Value "$($_.Name)"
             
@@ -2426,7 +2427,12 @@ Task -Name "Set-Arm.Connections.ManagedApis.SftpWithSsh.Username.Advanced.AsArmO
                 -Type "string" `
                 -Value "$fingerprint" `
                 -Description "The fingerprint that you expect during the initial communication with the Sftp server. ($($_.Name))"
-                
+
+            $armObj = Add-ArmParameter -InputObject $armObj -Name "$sshKeyPreSuf" `
+                -Type "SecureString" `
+                -Value "" `
+                -Description "The SSH private key used to authenticate against the Sftp server. Leave empty when using password authentication. ($($_.Name))"
+
             $armObj = Add-ArmParameter -InputObject $armObj -Name "$displayPreSuf" `
                 -Type "string" `
                 -Value $displayName `
@@ -2447,6 +2453,7 @@ Task -Name "Set-Arm.Connections.ManagedApis.SftpWithSsh.Username.Advanced.AsArmO
             $apiObj.Properties.ParameterValues.rootFolder = "[parameters('$rootPreSuf')]"
             $apiObj.Properties.ParameterValues.acceptAnySshHostKey = "[parameters('$acceptPreSuf')]"
             $apiObj.Properties.ParameterValues.sshHostKeyFingerprint = "[parameters('$fingerPreSuf')]"
+            $apiObj.Properties.ParameterValues.sshPrivateKey = "[parameters('$sshKeyPreSuf')]"
 
             # Update the api connection object type
             $_.Value.id -match "/managedApis/(.*)"
