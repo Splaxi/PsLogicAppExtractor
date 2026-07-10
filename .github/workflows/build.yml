@@ -1,31 +1,120 @@
-﻿name: Publish to PowerShell Gallery
+name: Publish to PowerShell Gallery
+
+# Build and release the PsLogicAppExtractor PowerShell module on every push to main.
+# Validation jobs run in parallel with module caching; build-and-release runs after all pass.
+
 on:
   push:
     branches:
       - main
 
 jobs:
-  build:
-    name: Push to Gallery
+  general-unit-tests:
+    name: Validate General Unit Tests
     runs-on: windows-latest
-
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup PowerShell module cache
-      id: cacher
-      uses: actions/cache@v3
+    - uses: actions/checkout@v4
       with:
-        path: "C:\\Users\\runneradmin\\Documents\\PowerShell\\Modules"
-        key: ${{ runner.os }}-PSFramework-PSScriptAnalyzer
+        fetch-depth: 1
+
+    - name: Cache Powershell Modules
+      id: cache-powershell-modules
+      uses: actions/cache@v5
+      with:
+        path: ~\Documents\PowerShell\Modules
+        key: ps-modules-${{ runner.os }}-v1
+
     - name: Install Prerequisites
-      if: steps.cacher.outputs.cache-hit != 'true'
-      run: .\build\vsts-prerequisites.ps1
+      if: steps.cache-powershell-modules.outputs.cache-hit != 'true'
       shell: pwsh
-    # - name: Validate
-    #   run: .\build\vsts-validate.ps1
-    #   shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        $modules = @('Pester','PSFramework','PSModuleDevelopment','PSScriptAnalyzer','psake')
+        foreach ($module in $modules) {
+          Write-Host "Installing $module..."
+          Install-Module -Name $module -Scope CurrentUser -Force -SkipPublisherCheck
+        }
+
+    - name: Validate
+      shell: pwsh
+      run: build\vsts-validate.ps1 -TestGeneral $true -TestFunctions $false
+
+  individual-unit-tests:
+    name: Validate Individual Unit Tests
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    - name: Cache Powershell Modules
+      id: cache-powershell-modules
+      uses: actions/cache@v5
+      with:
+        path: ~\Documents\PowerShell\Modules
+        key: ps-modules-${{ runner.os }}-v1
+
+    - name: Install Prerequisites
+      if: steps.cache-powershell-modules.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        $modules = @('Pester','PSFramework','PSModuleDevelopment','PSScriptAnalyzer','psake')
+        foreach ($module in $modules) {
+          Write-Host "Installing $module..."
+          Install-Module -Name $module -Scope CurrentUser -Force -SkipPublisherCheck
+        }
+
+    - name: Validate
+      shell: pwsh
+      run: build\vsts-validate.ps1 -TestGeneral $false -TestFunctions $true
+
+  build-and-release:
+    name: Build and Release
+    runs-on: windows-latest
+    needs: [general-unit-tests, individual-unit-tests]
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    - name: Cache Powershell Modules
+      id: cache-powershell-modules
+      uses: actions/cache@v5
+      with:
+        path: ~\Documents\PowerShell\Modules
+        key: ps-modules-${{ runner.os }}-v1
+
+    - name: Install Prerequisites
+      if: steps.cache-powershell-modules.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        $modules = @('Pester','PSFramework','PSModuleDevelopment','PSScriptAnalyzer','psake')
+        foreach ($module in $modules) {
+          Write-Host "Installing $module..."
+          Install-Module -Name $module -Scope CurrentUser -Force -SkipPublisherCheck
+        }
+
     - name: Build
-      run: .\build\vsts-build.ps1 -ApiKey $env:APIKEY -AutoVersion
       shell: pwsh
-      env:
-        APIKEY: ${{ secrets.ApiKey }}
+      run: .\build\vsts-build.ps1 -ApiKey ${{ secrets.ApiKey }} -AutoVersion:$true -SkipPublish:$false
+
+    - name: Get version
+      shell: pwsh
+      run: |
+        $publishDir = Get-Item -Path publish
+        [version]$version = (Import-PowerShellDataFile -Path "$($publishDir.FullName)\PsLogicAppExtractor\PsLogicAppExtractor.psd1").ModuleVersion
+        $githubReleaseVersion = "$($version.Major).$($version.Minor).$($version.Build)"
+        "VERSION=$githubReleaseVersion" >> $env:GITHUB_ENV
+
+    - name: Create GitHub release
+      uses: softprops/action-gh-release@v3
+      with:
+        name: ${{ env.VERSION }}
+        tag_name: ${{ env.VERSION }}
+        draft: false
+        prerelease: true
+        generate_release_notes: true
