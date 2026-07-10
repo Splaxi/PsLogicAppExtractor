@@ -1,0 +1,30 @@
+name: Warm Module Cache
+
+on:
+  push:
+    branches: [main, development]
+  schedule:
+    - cron: '0 6 * * 3,6' # Wednesday and Saturday 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  warm-cache:
+    runs-on: windows-latest
+    steps:
+    - name: Cache PowerShell modules
+      id: cache-powershell-modules
+      uses: actions/cache@v5
+      with:
+        path: ~\Documents\PowerShell\Modules
+        key: ps-modules-${{ runner.os }}-v1
+
+    - name: Install modules
+      if: steps.cache-powershell-modules.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+        $modules = @('Pester','PSFramework','PSModuleDevelopment','PSScriptAnalyzer','psake')
+        foreach ($module in $modules) {
+          Write-Host "Installing $module..."
+          Install-Module -Name $module -Scope CurrentUser -Force -SkipPublisherCheck
+        }
