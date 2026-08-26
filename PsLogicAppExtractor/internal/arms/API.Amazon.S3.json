@@ -1,4 +1,4 @@
-{
+﻿{
     "type": "Microsoft.Web/connections",
     "apiVersion": "2018-07-01-preview",
     "name": "##NAME##",
